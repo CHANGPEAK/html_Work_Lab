@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<base target="_top">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>管理者頁面｜<?= siteTitle ?></title>
+<style>
+  :root{
+    --bg:#f5f6f8; --card:#fff; --text:#1f2430; --sub:#6b7280; --line:#e3e6ec;
+    --accent:#3b6ef5; --accent-weak:#e8eefe; --danger:#d64545; --tile:#f8f9fb;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#14161b; --card:#1d2027; --text:#e8eaf0; --sub:#9aa1b0; --line:#2c303a;
+      --accent:#6f95ff; --accent-weak:#25304f; --danger:#ff7b7b; --tile:#242831; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans TC","PingFang TC","Microsoft JhengHei",sans-serif}
+  header{position:sticky;top:0;z-index:5;background:var(--card);border-bottom:1px solid var(--line);
+    padding:12px 16px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+  header h1{font-size:18px;margin:0 8px 0 0}
+  button{font:inherit;cursor:pointer;border:1px solid var(--line);background:var(--card);color:var(--text);
+    border-radius:8px;padding:7px 12px}
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+  input[type=text],input[type=search]{font:inherit;color:var(--text);background:var(--card);
+    border:1px solid var(--line);border-radius:8px;padding:7px 10px;min-width:0}
+  #q{flex:1;min-width:120px;max-width:260px;margin-left:auto}
+  #status{font-size:12px;color:var(--sub);min-width:70px}
+  #status.err{color:var(--danger)}
+  main{padding:16px;max-width:1200px;margin:0 auto}
+  .hint{font-size:13px;color:var(--sub);margin:0 0 12px}
+  .cat{background:var(--card);border:1px solid var(--line);border-radius:12px;margin-bottom:14px;
+    transition:border-color .15s, background .15s}
+  .cat.over{border-color:var(--accent);background:var(--accent-weak)}
+  .cat.dragging{opacity:.4;border-color:var(--accent)}
+  .grip{cursor:grab;color:var(--sub);font-size:18px;line-height:1;padding:6px 2px;user-select:none}
+  .grip:hover{color:var(--accent)}
+  .grip:active{cursor:grabbing}
+  .cat-head{display:flex;align-items:center;gap:8px;padding:10px 12px 0}
+  .cat-head h2{font-size:15px;margin:0;padding:6px 0}
+  .cat-head input{font-size:15px;font-weight:600;border-color:transparent;background:transparent;flex:1;max-width:320px}
+  .cat-head input:hover,.cat-head input:focus{border-color:var(--line);background:var(--card)}
+  .count{font-size:12px;color:var(--sub)}
+  .cat-head .del{margin-left:auto;padding:3px 8px;font-size:12px;color:var(--sub)}
+  .zone{display:flex;flex-wrap:wrap;gap:10px;padding:12px;min-height:84px}
+  .zone:empty::before{content:"把程式拖曳到這裡";color:var(--sub);font-size:13px;align-self:center;margin:auto}
+  .tile{position:relative;width:132px;background:var(--tile);border:1px solid var(--line);border-radius:10px;
+    padding:12px 8px 8px;text-align:center;cursor:pointer;user-select:none;
+    transition:transform .12s, box-shadow .12s}
+  .tile:hover{box-shadow:0 2px 10px rgba(0,0,0,.12);transform:translateY(-1px)}
+  .tile[draggable=true]{cursor:grab}
+  .tile.dragging{opacity:.35}
+  .ic{font-size:28px;line-height:1}
+  .nm{font-size:13px;font-weight:600;margin-top:6px;word-break:break-all;display:-webkit-box;
+    -webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;min-height:34px}
+  .tp{font-size:11px;color:var(--sub);margin-top:2px}
+  #tagbar{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px}
+  #tagbar:empty{display:none}
+  .chip{font-size:12px;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:var(--card);cursor:pointer}
+  .chip:hover{border-color:var(--accent)}
+  .chip.on{background:var(--accent);border-color:var(--accent);color:#fff}
+  .chip small{opacity:.7;margin-left:3px}
+  .chip.clear{border-style:dashed;color:var(--sub)}
+  .tags{display:flex;flex-wrap:wrap;justify-content:center;gap:3px;margin-top:5px;min-height:18px}
+  .mini{font-size:10.5px;padding:1px 6px;border-radius:999px;background:var(--accent-weak);color:var(--accent);cursor:pointer}
+  .mini.on{background:var(--accent);color:#fff}
+  .act{display:flex;justify-content:center;gap:4px;margin-top:6px}
+  .act button{padding:2px 7px;font-size:12px;border-radius:6px}
+  #drop{position:fixed;inset:0;background:rgba(59,110,245,.18);border:3px dashed var(--accent);
+    display:none;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:var(--accent);z-index:20;pointer-events:none}
+  #modal{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:center;justify-content:center;z-index:30;padding:16px}
+  #modal.show{display:flex}
+  .box{background:var(--card);border-radius:12px;padding:18px;width:100%;max-width:380px}
+  .box h3{margin:0 0 12px;font-size:16px}
+  .box label{display:block;font-size:12px;color:var(--sub);margin:10px 0 4px}
+  .box input{width:100%}
+  .box.wide{max-width:680px}
+  .box textarea{width:100%;height:320px;max-height:55vh;resize:vertical;font:12px/1.5 ui-monospace,Consolas,Menlo,monospace;
+    color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:8px 10px;white-space:pre;tab-size:2}
+  .btns{display:flex;justify-content:flex-end;gap:8px;margin-top:16px}
+  #loading{padding:40px;text-align:center;color:var(--sub)}
+  body.locked header, body.locked main{display:none}
+  #login{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:40;padding:16px}
+  #login .box{max-width:340px;text-align:center}
+  #login .box h3{font-size:18px;margin-bottom:4px}
+  #login p{margin:0 0 12px;color:var(--sub);font-size:13px}
+  #login input{text-align:center;letter-spacing:2px}
+  #login button{width:100%;margin-top:12px}
+  #loginMsg{min-height:18px;margin-top:10px;font-size:13px;color:var(--danger)}
+  #login input + input{margin-top:8px}
+  #login .showpw{display:flex;align-items:center;justify-content:center;gap:6px;margin-top:10px;font-size:13px;color:var(--sub);cursor:pointer;user-select:none}
+  #login .showpw input{width:auto;margin:0;letter-spacing:normal;cursor:pointer}
+  #login button:disabled{opacity:.5;cursor:not-allowed}
+  /* 首次使用建立管理員：帳號欄位固定白底黑字（不受深色模式、瀏覽器自動填入影響） */
+  #login.setup #un, #login.setup #sn{background:#fff;color:#000;caret-color:#000;color-scheme:light}
+  #login #sn{letter-spacing:normal}
+  #login.setup #un:-webkit-autofill, #login.setup #sn:-webkit-autofill{-webkit-box-shadow:0 0 0 100px #fff inset;-webkit-text-fill-color:#000}
+  a.lnk{font-size:13px;color:var(--accent);text-decoration:none;cursor:pointer}
+  #who{font-size:12px;color:var(--sub)}
+  .box.admins{max-width:520px}
+  .alist{margin:6px 0 0;padding:0;list-style:none;max-height:40vh;overflow:auto;border:1px solid var(--line);border-radius:8px}
+  .alist li{display:flex;align-items:center;gap:6px;padding:8px 10px;border-bottom:1px solid var(--line)}
+  .alist li:last-child{border-bottom:0}
+  .alist .u{flex:1;font-weight:600;word-break:break-all}
+  .alist .me{font-size:11px;font-weight:400;color:var(--accent);margin-left:6px}
+  .alist button{padding:2px 8px;font-size:12px}
+  .alist input{flex:1;min-width:0;width:auto}
+  .addrow{display:flex;gap:6px;margin-top:4px;flex-wrap:wrap}
+  .addrow input{width:auto;flex:1 1 140px}
+</style>
+</head>
+<body class="locked">
+<header>
+  <h1>🗂️ <span id="siteTitle"><?= siteTitle ?></span></h1>
+  <button class="primary" id="btnImport">＋ 匯入離線版</button>
+  <button class="primary" id="btnPaste">📋 貼上程式碼</button>
+  <button id="btnLink">🔗 新增線上連結</button>
+  <button id="btnCat">＋ 新增分類</button>
+  <a id="driveLink" href="#" target="_blank" style="font-size:13px;color:var(--accent);text-decoration:none" hidden>📁 雲端硬碟</a>
+  <input type="search" id="q" placeholder="搜尋名稱…">
+  <button id="btnTitle" title="設定公開頁與管理頁的標題名稱">⚙️ 網站標題</button>
+  <button id="btnAdmins" title="新增、刪除管理員，設定管理員密碼">👥 管理員</button>
+  <button id="btnPw" title="變更我的密碼">🔑</button>
+  <a class="lnk" id="pubLink" target="_top" title="檢視公開（唯讀）頁面">👁 公開頁</a>
+  <span id="who"></span>
+  <button id="btnOut">登出</button>
+  <span id="status"></span>
+  <input type="file" id="file" accept=".html,.htm,text/html" multiple hidden>
+</header>
+
+<main>
+  <p class="hint">可直接把 .html 檔拖進此頁匯入。拖曳方塊即可在分類間移動與排序；按住分類名稱左側的 ⠿ 可上下拖曳調整分類順序；點擊方塊開啟程式，⬇️ 可下載離線版。此頁的所有變更，會立即反映在公開頁面。</p>
+  <div id="tagbar"></div>
+  <div id="board"><div id="loading">載入中…</div></div>
+</main>
+
+<div id="login">
+  <div class="box">
+    <h3 id="loginTitle">🗂️ 管理者登入</h3>
+    <p id="loginSub">請輸入管理員帳號與密碼</p>
+    <div id="snWrap" style="display:none;text-align:left;margin-bottom:10px">
+      <div style="font-size:12px;color:var(--sub);margin-bottom:4px">網站名稱（之後可在管理頁按「⚙️ 網站標題」修改）</div>
+      <input type="text" id="sn" maxlength="40" placeholder="網站名稱" autocomplete="off">
+    </div>
+    <input type="text" id="un" autocomplete="username" placeholder="帳號">
+    <input type="password" id="pw" autocomplete="current-password" placeholder="密碼">
+    <input type="password" id="pw2" autocomplete="new-password" placeholder="再輸入一次密碼" style="display:none">
+    <label class="showpw"><input type="checkbox" id="showPw"> 顯示密碼</label>
+    <button class="primary" id="loginBtn">登入</button>
+    <div id="loginMsg"></div>
+    <div style="margin-top:10px"><a class="lnk" id="backPub" target="_top">← 回公開頁面</a></div>
+  </div>
+</div>
+<div id="drop">放開以匯入 .html 離線程式</div>
+<div id="modal"></div>
+
+<script>
+const BASE = <?!= JSON.stringify(baseUrl) ?>;
+const $ = s => document.querySelector(s);
+const el = (tag, cls) => { const e = document.createElement(tag); if (cls) e.className = cls; return e; };
+const uid = () => 'c' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+
+let S = { categories: [], unsorted: [], apps: {} };
+let dragEl = null;
+let catEl = null;   // 正在拖曳的分類區塊
+
+/* ---------- 與後端溝通 ---------- */
+let TOKEN = '';
+let ME = '';
+const NOAUTH = ['login', 'getAppHtml', 'getAuthInfo', 'setupFirstAdmin'];   // 這些函式不需要帶登入憑證
+$('#pubLink').href = BASE; $('#backPub').href = BASE;
+try { TOKEN = sessionStorage.getItem('wam_t') || ''; } catch (e) {}
+
+function gs(fn, ...args) {
+  const a = NOAUTH.includes(fn) ? args : [TOKEN, ...args];
+  return new Promise((res, rej) => {
+    google.script.run.withSuccessHandler(res).withFailureHandler(err => {
+      if (String((err && err.message) || err).includes('AUTH')) showLogin('登入已過期，請重新輸入密碼');
+      rej(err);
+    })[fn](...a);
+  });
+}
+
+function showLogin(msg) {
+  TOKEN = ''; ME = ''; $('#who').textContent = '';
+  try { sessionStorage.removeItem('wam_t'); } catch (e) {}
+  document.body.classList.add('locked');
+  $('#login').style.display = 'flex';
+  $('#loginMsg').textContent = msg || '';
+  $('#pw').value = ''; $('#pw2').value = '';
+  $('#showPw').checked = false; applyShowPw();
+  setTimeout(() => ($('#un').value ? $('#pw') : $('#un')).focus(), 50);
+  checkSetup();
+}
+
+/* 首次設定：資料庫中還沒有管理員時，登入畫面變成「建立第一個管理員」 */
+let SETUP = false;
+function setLoginMode(setup) {
+  SETUP = setup;
+  $('#login').classList.toggle('setup', setup);
+  $('#loginTitle').textContent = setup ? '🛠 首次使用：建立管理員' : '🗂️ 管理者登入';
+  $('#loginSub').textContent = setup ? '尚未設定管理員，請建立第一個管理員帳號與密碼' : '請輸入管理員帳號與密碼';
+  $('#pw2').style.display = setup ? '' : 'none';
+  $('#snWrap').style.display = setup ? '' : 'none';
+  $('#loginBtn').textContent = setup ? '建立並登入' : '登入';
+  $('#pw').autocomplete = setup ? 'new-password' : 'current-password';
+  $('#pw').placeholder = setup ? '密碼（至少 6 個字元）' : '密碼';
+  updateLoginBtn();
+}
+
+/* 顯示 / 隱藏密碼（帳號欄位一律顯示文字） */
+function applyShowPw() {
+  const t = $('#showPw').checked ? 'text' : 'password';
+  $('#pw').type = t; $('#pw2').type = t;
+}
+$('#showPw').onchange = applyShowPw;
+
+/* 首次設定：兩次密碼一致且符合長度，才能按「建立並登入」 */
+function updateLoginBtn() {
+  const btn = $('#loginBtn');
+  if (!SETUP) { btn.disabled = false; return; }
+  const a = $('#pw').value, b = $('#pw2').value;
+  const msg = $('#loginMsg');
+  let ok = true, hint = '';
+  if (!$('#un').value.trim()) ok = false;
+  if (a.length < 6) { ok = false; if (a) hint = '密碼至少 6 個字元'; }
+  else if (b && a !== b) { ok = false; hint = '兩次輸入的密碼不一致'; }
+  else if (!b) ok = false;
+  btn.disabled = !ok;
+  if (hint || /不一致|至少 6/.test(msg.textContent)) msg.textContent = hint;
+}
+['un', 'pw', 'pw2'].forEach(id => $('#' + id).addEventListener('input', updateLoginBtn));
+async function checkSetup() {
+  try {
+    const i = await gs('getAuthInfo'); setLoginMode(!!i.needSetup); applyTitle(i.siteTitle);
+    if (i.needSetup && !$('#sn').value) $('#sn').value = i.siteTitle || '';
+  } catch (e) {}
+}
+function applyTitle(t) {
+  if (!t) return;
+  $('#siteTitle').textContent = t;
+  try { document.title = '管理者頁面｜' + t; } catch (e) {}
+}
+function unlock() { document.body.classList.remove('locked'); $('#login').style.display = 'none'; }
+
+async function doLogin() {
+  const un = $('#un').value.trim(), pw = $('#pw').value;
+  if (!un || !pw) return;
+  if (SETUP && pw !== $('#pw2').value) { $('#loginMsg').textContent = '兩次輸入的密碼不一致，無法建立'; return; }
+  const btn = $('#loginBtn'); btn.disabled = true; $('#loginMsg').textContent = SETUP ? '建立中…' : '驗證中…';
+  try {
+    TOKEN = SETUP ? await gs('setupFirstAdmin', un, pw, $('#sn').value.trim()) : await gs('login', un, pw);
+    try { sessionStorage.setItem('wam_t', TOKEN); } catch (e) {}
+    $('#loginMsg').textContent = '';
+    await boot();
+  } catch (e) {
+    const em = (e && e.message) || String(e);
+    $('#loginMsg').textContent = em;
+    if (em.includes('已完成初始設定') || em.includes('尚未設定管理員')) checkSetup();   // 畫面狀態與後端不同步時重新判斷
+    $('#pw').select();
+  } finally { updateLoginBtn(); }
+}
+$('#loginBtn').onclick = doLogin;
+$('#pw').onkeydown = e => { if (e.key === 'Enter') (SETUP && !$('#pw2').value ? $('#pw2').focus() : doLogin()); };
+$('#pw2').onkeydown = e => { if (e.key === 'Enter') doLogin(); };
+$('#un').onkeydown = e => { if (e.key === 'Enter') ($('#pw').value ? doLogin() : $('#pw').focus()); };
+function setStatus(t, err) { const s = $('#status'); s.textContent = t || ''; s.className = err ? 'err' : ''; }
+
+let saveTimer;
+function queueSave() {
+  setStatus('儲存中…');
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    try { await gs('saveLayout', { categories: S.categories, unsorted: S.unsorted }); setStatus('已儲存 ✓'); }
+    catch (e) { setStatus('儲存失敗：' + (e.message || e), true); }
+  }, 400);
+}
+
+/* ---------- 對話框 ---------- */
+function ask(title, fields, okText) {
+  fields = fields || [];
+  return new Promise(resolve => {
+    const m = $('#modal'); m.innerHTML = '';
+    const box = el('div', 'box');
+    const h = el('h3'); h.textContent = title; box.appendChild(h);
+    if (fields.some(f => f.multiline)) box.classList.add('wide');
+    const inputs = fields.map(f => {
+      const l = el('label'); l.textContent = f.label; box.appendChild(l);
+      const i = el(f.multiline ? 'textarea' : 'input');
+      if (!f.multiline) i.type = f.password ? 'password' : 'text';
+      i.value = f.value || ''; i.placeholder = f.placeholder || '';
+      if (f.multiline) i.spellcheck = false;
+      if (f.multiline || f.password) i.dataset.raw = '1';
+      box.appendChild(i); return i;
+    });
+    const btns = el('div', 'btns');
+    const no = el('button'); no.textContent = '取消';
+    const ok = el('button', 'primary'); ok.textContent = okText || '確定';
+    btns.append(no, ok); box.appendChild(btns); m.appendChild(box); m.classList.add('show');
+    const close = v => { m.classList.remove('show'); m.innerHTML = ''; resolve(v); };
+    no.onclick = () => close(null);
+    ok.onclick = () => close(inputs.map(i => i.dataset.raw ? i.value : i.value.trim()));
+    box.onkeydown = e => {
+      if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') ok.click();
+      if (e.key === 'Escape') no.click();
+    };
+    // 在程式碼欄位按 Tab 時插入縮排，而不是跳到下一個欄位
+    box.addEventListener('keydown', e => {
+      if (e.key === 'Tab' && e.target.tagName === 'TEXTAREA') {
+        e.preventDefault();
+        const t = e.target, s = t.selectionStart;
+        t.value = t.value.slice(0, s) + '  ' + t.value.slice(t.selectionEnd);
+        t.selectionStart = t.selectionEnd = s + 2;
+      }
+    });
+    m.onclick = e => { if (e.target === m) close(null); };
+    (inputs[0] || ok).focus();
+    if (inputs[0]) inputs[0].select();
+  });
+}
+
+/* ---------- 畫面 ---------- */
+const activeTags = new Set();
+
+function matches(a) {
+  const q = $('#q').value.trim().toLowerCase().replace(/^#/, '');
+  const tags = a.tags || [];
+  if (q && !(a.name.toLowerCase().includes(q) || tags.some(t => t.toLowerCase().includes(q)))) return false;
+  for (const t of activeTags) if (!tags.includes(t)) return false;
+  return true;
+}
+function isFiltering() { return !!$('#q').value.trim() || activeTags.size > 0; }
+function toggleTag(t) { activeTags.has(t) ? activeTags.delete(t) : activeTags.add(t); render(); }
+
+function renderTagbar() {
+  const bar = $('#tagbar'); bar.innerHTML = '';
+  const count = {};
+  Object.values(S.apps).forEach(a => (a.tags || []).forEach(t => { count[t] = (count[t] || 0) + 1; }));
+  [...activeTags].forEach(t => { if (!count[t]) activeTags.delete(t); });
+  const names = Object.keys(count).sort((x, y) => count[y] - count[x] || x.localeCompare(y, 'zh-Hant'));
+  if (!names.length) return;
+  const lab = el('span', 'count'); lab.textContent = '標籤：'; bar.appendChild(lab);
+  names.forEach(t => {
+    const c = el('span', 'chip' + (activeTags.has(t) ? ' on' : ''));
+    c.textContent = t; const n = el('small'); n.textContent = count[t]; c.appendChild(n);
+    c.onclick = () => toggleTag(t); bar.appendChild(c);
+  });
+  if (activeTags.size) {
+    const x = el('span', 'chip clear'); x.textContent = '✕ 清除篩選（同時符合所選標籤）';
+    x.onclick = () => { activeTags.clear(); render(); }; bar.appendChild(x);
+  }
+}
+
+function render() {
+  const q = $('#q').value.trim().toLowerCase();
+  renderTagbar();
+  const board = $('#board'); board.innerHTML = '';
+  board.appendChild(section({ id: 'unsorted', name: '未分類', items: S.unsorted }, true, q));
+  S.categories.forEach(c => board.appendChild(section(c, false, q)));
+}
+
+function section(c, fixed, q) {
+  const sec = el('section', 'cat'); sec.dataset.cat = c.id;
+  const head = el('div', 'cat-head');
+  if (fixed) {
+    const h = el('h2'); h.textContent = '未分類'; head.appendChild(h);
+  } else {
+    const grip = el('span', 'grip'); grip.textContent = '⠿'; grip.title = '按住拖曳，調整分類順序';
+    grip.onmousedown = () => { sec.draggable = true; };   // 只有按住把手時，整個分類才可拖曳
+    head.appendChild(grip);
+    const inp = el('input'); inp.type = 'text'; inp.value = c.name; inp.title = '點此修改分類名稱';
+    inp.onchange = () => { c.name = inp.value.trim() || '未命名分類'; inp.value = c.name; queueSave(); };
+    inp.onkeydown = e => { if (e.key === 'Enter') inp.blur(); };
+    head.appendChild(inp);
+  }
+  const cnt = el('span', 'count'); cnt.textContent = c.items.length + ' 個'; head.appendChild(cnt);
+  if (!fixed) {
+    const del = el('button', 'del'); del.textContent = '刪除分類';
+    del.onclick = async () => {
+      const r = await ask('刪除分類「' + c.name + '」？', [], '刪除');
+      if (!r) return;
+      S.unsorted.push(...c.items);
+      S.categories = S.categories.filter(x => x.id !== c.id);
+      render(); queueSave();
+    };
+    head.appendChild(del);
+  }
+  const zone = el('div', 'zone'); zone.dataset.cat = c.id;
+  c.items.forEach(id => {
+    const a = S.apps[id]; if (!a) return;
+    if (!matches(a)) return;
+    zone.appendChild(tile(a, !isFiltering()));
+  });
+  sec.append(head, zone);
+  if (!fixed) {
+    sec.addEventListener('dragstart', e => {
+      if (e.target !== sec) return;          // 方塊自己的拖曳不處理
+      catEl = sec;
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', 'cat:' + c.id);
+      setTimeout(() => sec.classList.add('dragging'), 0);
+    });
+    sec.addEventListener('dragend', e => {
+      if (e.target !== sec) return;
+      sec.draggable = false; sec.classList.remove('dragging');
+      syncCatOrder(); catEl = null; render(); queueSave();
+    });
+  }
+  return sec;
+}
+
+function tile(a, canDrag) {
+  const d = el('div', 'tile'); d.dataset.id = a.id; d.draggable = canDrag;
+  d.title = a.type === 'link' ? a.url : a.name;
+  d.innerHTML = '<div class="ic"></div><div class="nm"></div><div class="tp"></div><div class="tags"></div>' +
+    '<div class="act">' + (a.type === 'link' ? '' : '<button data-a="dl" title="下載離線程式">⬇️</button>') + '<button data-a="tag" title="編輯標籤">🏷</button><button data-a="ren" title="重新命名">✏️</button><button data-a="del" title="刪除">🗑</button></div>';
+  d.querySelector('.ic').textContent = a.type === 'link' ? '🔗' : '📦';
+  d.querySelector('.nm').textContent = a.name;
+  d.querySelector('.tp').textContent = a.type === 'link' ? '線上' : '離線';
+  const tg = d.querySelector('.tags'), tags = a.tags || [];
+  tags.slice(0, 3).forEach(t => {
+    const s = el('span', 'mini' + (activeTags.has(t) ? ' on' : ''));
+    s.textContent = t; s.dataset.tag = t; s.title = '依「' + t + '」篩選'; tg.appendChild(s);
+  });
+  if (tags.length > 3) { const s = el('span', 'mini'); s.textContent = '+' + (tags.length - 3); s.title = tags.slice(3).join('、'); tg.appendChild(s); }
+
+  d.addEventListener('click', async e => {
+    const chip = e.target.closest('.mini');
+    if (chip && chip.dataset.tag) { toggleTag(chip.dataset.tag); return; }
+    const b = e.target.closest('button');
+    if (!b) return openApp(a);
+    if (b.dataset.a === 'dl') { downloadApp(a); return; }
+    if (b.dataset.a === 'tag') {
+      const r = await ask('編輯標籤：' + a.name, [{ label: '標籤（以逗號分隔，可留空）', value: (a.tags || []).join(', '), placeholder: '例如：成績, 國中, 教學' }]);
+      if (!r) return;
+      try { a.tags = await gs('setTags', a.id, r[0]); render(); } catch (err) { setStatus('失敗：' + err.message, true); }
+      return;
+    }
+    if (b.dataset.a === 'ren') {
+      const r = await ask('重新命名', [{ label: '名稱', value: a.name }]);
+      if (!r || !r[0]) return;
+      try { a.name = await gs('renameApp', a.id, r[0]); render(); } catch (err) { setStatus('失敗：' + err.message, true); }
+    } else {
+      const msg = a.type === 'link'
+        ? '移除連結「' + a.name + '」？'
+        : '移除「' + a.name + '」？雲端硬碟中的程式碼與 json 會移到垃圾桶。';
+      const r = await ask(msg, [], '移除');
+      if (!r) return;
+      try {
+        await gs('deleteApp', a.id);
+        delete S.apps[a.id];
+        S.unsorted = S.unsorted.filter(x => x !== a.id);
+        S.categories.forEach(c => c.items = c.items.filter(x => x !== a.id));
+        render();
+      } catch (err) { setStatus('失敗：' + err.message, true); }
+    }
+  });
+
+  d.addEventListener('dragstart', e => {
+    dragEl = d;
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', a.id);
+    setTimeout(() => d.classList.add('dragging'), 0);
+  });
+  d.addEventListener('dragend', () => {
+    d.classList.remove('dragging');
+    document.querySelectorAll('.over').forEach(x => x.classList.remove('over'));
+    syncFromDOM(); dragEl = null; render(); queueSave();
+  });
+  return d;
+}
+
+function openApp(a) {
+  const url = a.type === 'link' ? a.url : BASE + '?run=' + encodeURIComponent(a.id);
+  const w = window.open(url, '_blank');
+  if (!w) window.top.location.href = url;
+}
+
+async function downloadApp(a) {
+  try {
+    setStatus('準備下載：' + a.name);
+    const r = await gs('getAppHtml', a.id);
+    const blob = new Blob([r.html], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = (String(r.name).replace(/[\\/:*?"<>|]/g, '_') || 'app') + '.html';
+    document.body.appendChild(link); link.click(); link.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    setStatus('已下載 ✓');
+  } catch (e) { setStatus('下載失敗：' + ((e && e.message) || e), true); }
+}
+
+/* ---------- 拖曳排序 ---------- */
+function afterEl(zone, x, y) {
+  const items = [...zone.querySelectorAll('.tile:not(.dragging)')];
+  for (const it of items) {
+    const r = it.getBoundingClientRect();
+    if (y < r.top || (y <= r.bottom && x < r.left + r.width / 2)) return it;
+  }
+  return null;
+}
+
+$('#board').addEventListener('dragover', e => {
+  if (catEl) {                                // 拖曳分類：上下移動（「未分類」固定在最上方）
+    e.preventDefault();
+    const board = $('#board');
+    const others = [...board.querySelectorAll('.cat')].filter(x => x !== catEl && x.dataset.cat !== 'unsorted');
+    let before = null;
+    for (const x of others) {
+      const r = x.getBoundingClientRect();
+      if (e.clientY < r.top + r.height / 2) { before = x; break; }
+    }
+    if (before) { if (before !== catEl.nextElementSibling) board.insertBefore(catEl, before); }
+    else if (board.lastElementChild !== catEl) board.appendChild(catEl);
+    return;
+  }
+  if (!dragEl) return;
+  e.preventDefault();
+  const sec = e.target.closest('.cat'); if (!sec) return;
+  document.querySelectorAll('.over').forEach(x => x !== sec && x.classList.remove('over'));
+  sec.classList.add('over');
+  const zone = sec.querySelector('.zone');
+  const after = afterEl(zone, e.clientX, e.clientY);
+  if (after === null) { if (zone.lastElementChild !== dragEl) zone.appendChild(dragEl); }
+  else if (after !== dragEl.nextElementSibling) zone.insertBefore(dragEl, after);
+});
+$('#board').addEventListener('drop', e => { if (dragEl || catEl) e.preventDefault(); });
+document.addEventListener('mouseup', () => {   // 按了把手但沒有拖曳時，取消可拖曳狀態
+  document.querySelectorAll('.cat[draggable=true]').forEach(x => { x.draggable = false; });
+});
+
+function syncCatOrder() {
+  const order = [...document.querySelectorAll('.cat')].map(x => x.dataset.cat).filter(x => x !== 'unsorted');
+  S.categories.sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+}
+
+function syncFromDOM() {
+  document.querySelectorAll('.cat').forEach(sec => {
+    const ids = [...sec.querySelectorAll('.tile')].map(t => t.dataset.id);
+    if (sec.dataset.cat === 'unsorted') S.unsorted = ids;
+    else { const c = S.categories.find(x => x.id === sec.dataset.cat); if (c) c.items = ids; }
+  });
+}
+
+/* ---------- 匯入 ---------- */
+async function importFiles(files) {
+  const list = [...files].filter(f => /\.html?$/i.test(f.name));
+  if (!list.length) { setStatus('請選擇 .html 檔案', true); return; }
+  let n = 0;
+  for (const f of list) {
+    n++; setStatus('匯入中 ' + n + '/' + list.length + '：' + f.name);
+    try {
+      const text = await f.text();
+      const meta = await gs('importApp', f.name.replace(/\.html?$/i, ''), text);
+      S.apps[meta.id] = meta; S.unsorted.push(meta.id); render();
+    } catch (e) { setStatus('匯入失敗：' + f.name + '（' + (e.message || e) + '）', true); return; }
+  }
+  setStatus('已匯入 ' + list.length + ' 個程式 ✓');
+}
+
+$('#btnImport').onclick = () => $('#file').click();
+$('#file').onchange = e => { importFiles(e.target.files); e.target.value = ''; };
+
+$('#btnPaste').onclick = async () => {
+  const r = await ask('貼上 HTML 程式碼', [
+    { label: '名稱（可留空，會自動取用 <title>）', placeholder: '例如：段考成績分析' },
+    { label: '標籤（以逗號分隔，可留空）', placeholder: '例如：成績, 教學' },
+    { label: 'HTML 程式碼', multiline: true, placeholder: '<!DOCTYPE html>\n<html>…' }
+  ], '匯入');
+  if (!r) return;
+  const code = r[2];
+  if (!code || !code.trim()) { setStatus('請貼上程式碼', true); return; }
+  let name = r[0];
+  if (!name) {
+    const m = code.match(/<title[^>]*>([\s\S]*?)<\/title>/i);
+    name = (m && m[1].trim()) || '未命名程式';
+  }
+  try {
+    setStatus('匯入中：' + name);
+    const meta = await gs('importApp', name, code, r[1]);
+    S.apps[meta.id] = meta; S.unsorted.push(meta.id); render();
+    setStatus('已匯入「' + name + '」✓');
+  } catch (e) { setStatus('匯入失敗：' + (e.message || e), true); }
+};
+
+$('#btnLink').onclick = async () => {
+  const r = await ask('新增線上網頁應用程式', [
+    { label: '名稱', placeholder: '例如：段考成績分析' },
+    { label: '網址', placeholder: 'https://…' },
+    { label: '標籤（以逗號分隔，可留空）', placeholder: '例如：成績, 教學' }
+  ], '新增');
+  if (!r) return;
+  try {
+    setStatus('新增中…');
+    const meta = await gs('addLink', r[0], r[1], r[2]);
+    S.apps[meta.id] = meta; S.unsorted.push(meta.id); render(); setStatus('已新增 ✓');
+  } catch (e) { setStatus('失敗：' + (e.message || e), true); }
+};
+
+$('#btnCat').onclick = () => {
+  S.categories.push({ id: uid(), name: '新分類', items: [] });
+  render(); queueSave();
+  const ins = document.querySelectorAll('.cat-head input');
+  const last = ins[ins.length - 1]; if (last) { last.focus(); last.select(); }
+};
+
+$('#q').oninput = render;
+
+/* 拖入檔案匯入 */
+let dragDepth = 0;
+const isFileDrag = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+window.addEventListener('dragenter', e => { if (isFileDrag(e)) { dragDepth++; $('#drop').style.display = 'flex'; } });
+window.addEventListener('dragleave', e => { if (isFileDrag(e) && --dragDepth <= 0) { dragDepth = 0; $('#drop').style.display = 'none'; } });
+window.addEventListener('dragover', e => { if (isFileDrag(e)) e.preventDefault(); });
+window.addEventListener('drop', e => {
+  if (!isFileDrag(e)) return;
+  e.preventDefault(); dragDepth = 0; $('#drop').style.display = 'none';
+  importFiles(e.dataTransfer.files);
+});
+
+/* ---------- 啟動 ---------- */
+function boot() {
+  return gs('getState').then(st => {
+    S = st; ME = st.me || ''; $('#who').textContent = ME ? '👤 ' + ME : ''; applyTitle(st.siteTitle); unlock(); render();
+    if (st.rootUrl) { const a = $('#driveLink'); a.href = st.rootUrl; a.hidden = false; }
+  }).catch(e => {
+    if (String((e && e.message) || e).includes('AUTH')) return;
+    unlock();
+    $('#board').innerHTML = '<div id="loading">載入失敗：' + ((e && e.message) || e) + '</div>';
+  });
+}
+
+$('#btnOut').onclick = async () => {
+  try { await gs('logout'); } catch (e) {}
+  S = { categories: [], unsorted: [], apps: {} };
+  $('#board').innerHTML = '';
+  showLogin('');
+};
+
+async function changePw(user, pw) {
+  const r = await gs('setAdminPassword', user, pw);
+  if (r && r.token) {            // 改的是自己：換成新的登入憑證
+    TOKEN = r.token;
+    try { sessionStorage.setItem('wam_t', TOKEN); } catch (e) {}
+  }
+}
+
+$('#btnPw').onclick = async () => {
+  const r = await ask('變更我的密碼（' + ME + '）', [
+    { label: '新密碼（至少 6 個字元）', password: true },
+    { label: '再輸入一次新密碼', password: true }
+  ], '變更');
+  if (!r) return;
+  if (r[0] !== r[1]) { setStatus('兩次輸入的密碼不一致', true); return; }
+  try { await changePw(ME, r[0]); setStatus('密碼已變更 ✓'); }
+  catch (e) { setStatus('變更失敗：' + ((e && e.message) || e), true); }
+};
+
+$('#btnTitle').onclick = async () => {
+  const r = await ask('設定網站標題', [
+    { label: '標題名稱（顯示在公開頁、管理者頁與瀏覽器分頁；留空則還原預設）', value: $('#siteTitle').textContent }
+  ], '儲存');
+  if (!r) return;
+  try { applyTitle(await gs('setSiteTitle', r[0])); setStatus('標題已更新 ✓'); }
+  catch (e) { setStatus('設定失敗：' + ((e && e.message) || e), true); }
+};
+
+/* ---------- 管理員帳號管理 ---------- */
+function showAdmins() {
+  const m = $('#modal'); m.innerHTML = '';
+  const box = el('div', 'box admins');
+  box.innerHTML = '<h3>👥 管理員帳號</h3><ul class="alist"></ul>' +
+    '<label>新增管理員</label>' +
+    '<div class="addrow"><input type="text" id="nu" placeholder="帳號" autocomplete="off">' +
+    '<input type="password" id="np" placeholder="密碼（至少 6 個字元）" autocomplete="new-password">' +
+    '<button class="primary" id="na">新增</button></div>' +
+    '<div id="am" style="min-height:18px;margin-top:8px;font-size:13px"></div>' +
+    '<div class="btns"><button id="ac">關閉</button></div>';
+  m.appendChild(box); m.classList.add('show');
+  const ul = box.querySelector('.alist'), am = box.querySelector('#am');
+  const close = () => { m.classList.remove('show'); m.innerHTML = ''; };
+  const msg = (t, err) => { am.textContent = t || ''; am.style.color = err ? 'var(--danger)' : 'var(--sub)'; };
+  const fail = e => { if (!String((e && e.message) || e).includes('AUTH')) msg((e && e.message) || String(e), true); };
+  box.querySelector('#ac').onclick = close;
+  m.onclick = e => { if (e.target === m) close(); };
+  box.onkeydown = e => { if (e.key === 'Escape') close(); };
+
+  async function refresh() {
+    ul.innerHTML = '<li>載入中…</li>';
+    let list;
+    try { list = await gs('listAdmins'); } catch (e) { ul.innerHTML = ''; fail(e); return; }
+    ul.innerHTML = '';
+    list.forEach(a => {
+      const li = el('li');
+      const u = el('span', 'u'); u.textContent = a.username;
+      if (a.self) { const s = el('span', 'me'); s.textContent = '（目前登入）'; u.appendChild(s); }
+      li.appendChild(u);
+      const pw = el('button'); pw.textContent = '設定密碼';
+      pw.onclick = () => {
+        li.innerHTML = '';
+        const inp = el('input'); inp.type = 'password'; inp.autocomplete = 'new-password';
+        inp.placeholder = a.username + ' 的新密碼';
+        const ok = el('button', 'primary'); ok.textContent = '儲存';
+        const no = el('button'); no.textContent = '取消';
+        li.append(inp, ok, no); inp.focus();
+        no.onclick = refresh;
+        inp.onkeydown = e => { if (e.key === 'Enter') ok.click(); };
+        ok.onclick = async () => {
+          try { await changePw(a.username, inp.value); msg('已設定「' + a.username + '」的密碼 ✓'); refresh(); }
+          catch (e) { fail(e); }
+        };
+      };
+      li.appendChild(pw);
+      if (!a.self) {
+        const del = el('button'); del.textContent = '刪除';
+        let armed = 0;
+        del.onclick = async () => {
+          if (!armed) {
+            armed = setTimeout(() => { armed = 0; del.textContent = '刪除'; }, 3000);
+            del.textContent = '再按一次確認'; return;
+          }
+          clearTimeout(armed);
+          try { await gs('deleteAdmin', a.username); msg('已刪除「' + a.username + '」'); refresh(); }
+          catch (e) { fail(e); }
+        };
+        li.appendChild(del);
+      }
+      ul.appendChild(li);
+    });
+  }
+
+  const nu = box.querySelector('#nu'), np = box.querySelector('#np');
+  const add = async () => {
+    const u = nu.value.trim();
+    try { await gs('addAdmin', u, np.value); nu.value = ''; np.value = ''; msg('已新增「' + u + '」✓'); refresh(); }
+    catch (e) { fail(e); }
+  };
+  box.querySelector('#na').onclick = add;
+  np.onkeydown = e => { if (e.key === 'Enter') add(); };
+  refresh();
+}
+$('#btnAdmins').onclick = showAdmins;
+
+if (TOKEN) boot(); else showLogin('');
+</script>
+</body>
+</html>
